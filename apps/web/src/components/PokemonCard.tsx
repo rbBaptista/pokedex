@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { corDoTipo } from '../constants/coresPorTipo'
 import type { PokemonResumo } from '../types/pokemon'
 
@@ -10,7 +11,10 @@ function PokemonCard({ pokemon }: PokemonCardProps) {
   const nomeCapitalizado = pokemon.nome.charAt(0).toUpperCase() + pokemon.nome.slice(1)
 
   return (
-    <div className="flex flex-col items-center rounded-lg border border-neutral-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+    <Link
+      to={`/pokemon/${pokemon.id}`}
+      className="flex flex-col items-center rounded-lg border border-neutral-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+    >
       <span className="self-end text-sm text-neutral-400">{numeroFormatado}</span>
       <img src={pokemon.spriteUrl} alt={nomeCapitalizado} className="h-24 w-24 object-contain" />
       <h2 className="mt-2 font-semibold text-neutral-800">{nomeCapitalizado}</h2>
@@ -24,7 +28,7 @@ function PokemonCard({ pokemon }: PokemonCardProps) {
           </span>
         ))}
       </div>
-    </div>
+    </Link>
   )
 }
 

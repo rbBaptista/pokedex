@@ -1,14 +1,16 @@
-import Navbar from './components/Navbar'
-import PokemonGrid from './components/PokemonGrid'
+import { Route, Routes } from 'react-router'
+import Layout from './components/Layout'
+import PaginaDetalhe from './pages/PaginaDetalhe'
+import PaginaInicial from './pages/PaginaInicial'
 
 function App() {
   return (
-    <div className="min-h-screen bg-slate-100">
-      <Navbar />
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <PokemonGrid />
-      </main>
-    </div>
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<PaginaInicial />} />
+        <Route path="pokemon/:id" element={<PaginaDetalhe />} />
+      </Route>
+    </Routes>
   )
 }
 
