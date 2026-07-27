@@ -37,7 +37,7 @@ pokedex-site/
 ## Status do projeto
 - [x] Setup inicial do repositório (frontend + backend)
 - [x] Configuração do Prisma + schema inicial
-- [ ] Estrutura de rotas da API
+- [x] Estrutura de rotas da API
 - [ ] Layout base do frontend (Navbar, Grid de Pokémons)
 - [ ] Página de detalhes do Pokémon
 - [ ] Busca e filtros
