@@ -1,0 +1,52 @@
+// Schema do Prisma: define o banco (SQLite em dev) e os modelos de dados.
+// Rodar migrações a partir de apps/api (ver scripts db:migrate / db:generate).
+// A partir do Prisma 7, a URL de conexão não fica mais aqui: ela é definida
+// em apps/api/prisma.config.ts.
+
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../apps/api/src/generated/prisma"
+  runtime      = "nodejs"
+  moduleFormat = "esm"
+}
+
+// Um Pokémon da Pokédex, com seus atributos base.
+model Pokemon {
+  id                 Int      @id
+  nome               String
+  altura             Int
+  peso               Int
+  hpBase             Int
+  ataqueBase         Int
+  defesaBase         Int
+  ataqueEspecialBase Int
+  defesaEspecialBase Int
+  velocidadeBase     Int
+  spriteUrl          String
+  criadoEm           DateTime @default(now())
+
+  tipos PokemonType[]
+}
+
+// Um tipo de Pokémon (fire, water, grass, etc.).
+model Type {
+  id   Int    @id @default(autoincrement())
+  nome String @unique
+
+  pokemons PokemonType[]
+}
+
+// Tabela de ligação: um Pokémon pode ter vários tipos, e um tipo pertence a vários Pokémons.
+model PokemonType {
+  pokemonId Int
+  typeId    Int
+
+  pokemon Pokemon @relation(fields: [pokemonId], references: [id])
+  tipo    Type    @relation(fields: [typeId], references: [id])
+
+  @@id([pokemonId, typeId])
+}

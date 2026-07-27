@@ -1,0 +1,34 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+build/
+
+# Variáveis de ambiente
+.env
+.env.*
+!.env.example
+
+# Banco de dados (SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Prisma Client gerado (recriado com "npm run db:generate")
+apps/api/src/generated/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.local
+
+# Cache do TypeScript
+*.tsbuildinfo
