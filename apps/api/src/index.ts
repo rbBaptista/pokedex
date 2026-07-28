@@ -1,5 +1,6 @@
 import cors from 'cors'
 import express from 'express'
+import { geracoesRouter } from './routes/geracoes.routes.ts'
 import { pokemonsRouter } from './routes/pokemons.routes.ts'
 
 const app = express()
@@ -14,6 +15,7 @@ app.get('/api/health', (_req, res) => {
 })
 
 app.use('/api/pokemons', pokemonsRouter)
+app.use('/api/geracoes', geracoesRouter)
 
 app.listen(porta, () => {
   console.log(`API rodando em http://localhost:${porta}`)

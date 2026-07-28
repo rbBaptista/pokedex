@@ -23,3 +23,10 @@ export interface PokemonDetalhe {
     velocidade: number
   }
 }
+
+// Formato retornado por GET /api/geracoes.
+export interface Generation {
+  numero: number
+  regiao: string
+  totalPokemons: number
+}

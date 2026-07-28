@@ -27,9 +27,19 @@ model Pokemon {
   defesaEspecialBase Int
   velocidadeBase     Int
   spriteUrl          String
+  geracaoNumero      Int
   criadoEm           DateTime @default(now())
 
-  tipos PokemonType[]
+  tipos   PokemonType[]
+  geracao Generation    @relation(fields: [geracaoNumero], references: [numero])
+}
+
+// Uma geração de Pokémon (ex: geração 1 = Kanto).
+model Generation {
+  numero Int    @id
+  regiao String
+
+  pokemons Pokemon[]
 }
 
 // Um tipo de Pokémon (fire, water, grass, etc.).

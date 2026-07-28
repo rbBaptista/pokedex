@@ -40,5 +40,5 @@ pokedex-site/
 - [x] Estrutura de rotas da API
 - [x] Layout base do frontend (Navbar, Grid de Pokémons)
 - [x] Página de detalhes do Pokémon
-- [ ] Busca e filtros
+- [x] Busca e filtros
 - [ ] Deploy
