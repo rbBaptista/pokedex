@@ -39,8 +39,8 @@ Leia antes de propor qualquer mudança de arquitetura.
 - [x] Sincronizar todas as gerações da PokeAPI (1025 Pokémon, 9 gerações)
 - [x] Paginação da Home por geração (não por número fixo de itens)
 - [x] Opção "Todas" no seletor de geração (exige paginação ou scroll infinito na Home)
-- [ ] Modelos `User` e `Captura` no Prisma (relação usuário ↔ Pokémon)
-- [ ] Autenticação na API: cadastro, login e logout (senha com hash, nunca em texto puro)
+- [x] Modelos `User` e `Captura` no Prisma (relação usuário ↔ Pokémon)
+- [x] Autenticação na API: cadastro, login e logout (senha com hash, nunca em texto puro)
 - [ ] Estado de autenticação no frontend + página `/login` e `/cadastro`
 - [ ] Navbar: botão "Entrar" quando deslogado, nome do usuário e "Sair" quando logado
 - [ ] Página `/minha-pokedex` com os Pokémon capturados pelo usuário logado (rota protegida)
@@ -59,13 +59,18 @@ pokedex/
 ├── apps/
 │   ├── api/
 │   │   ├── prisma.config.ts    # config do Prisma CLI (schema/migrations/URL)
-│   │   ├── .env                # DATABASE_URL (gitignored)
+│   │   ├── .env                # DATABASE_URL, JWT_SECRET (gitignored)
+│   │   ├── .env.example        # variáveis necessárias, sem valores reais
 │   │   └── src/
 │   │       ├── index.ts        # cria o Express app, monta os routers
 │   │       ├── prisma.ts       # client único do Prisma (com driver adapter)
+│   │       ├── token.ts        # criarToken/verificarToken (JWT)
+│   │       ├── middlewares/
+│   │       │   └── autenticacao.ts   # exige cookie de login válido, anexa req.usuarioId
 │   │       ├── routes/
 │   │       │   ├── pokemons.routes.ts
-│   │       │   └── geracoes.routes.ts
+│   │       │   ├── geracoes.routes.ts
+│   │       │   └── auth.routes.ts
 │   │       ├── scripts/
 │   │       │   └── sync-pokeapi.ts   # popula o banco a partir da PokeAPI
 │   │       └── generated/prisma/     # Prisma Client gerado (gitignored)
@@ -88,11 +93,17 @@ pokedex/
 - `GET /api/pokemons` — lista Pokémon paginada. Resposta: `{ itens, total, pagina, limite }`, onde `itens` tem o formato resumido (`id`, `nome`, `spriteUrl`, `tipos`) e `total` é a contagem batendo com os filtros aplicados. Aceita query params combináveis: `busca` (nome contém, case-insensitive), `tipo` (nome do tipo), `geracao` (número da geração), `limite` (padrão 96, máximo 100) e `pagina` (padrão 1). Entradas inválidas (não numéricas, zero ou negativas) caem nos padrões em vez de quebrar a rota.
 - `GET /api/pokemons/:id` — detalhe completo de um Pokémon (`altura`, `peso`, `spriteUrl`, `tipos`, `stats` com os 6 atributos base). 400 se `:id` não for número, 404 se não existir.
 - `GET /api/geracoes` — lista as 9 gerações com `numero`, `regiao` e `totalPokemons` (contagem via Prisma).
+- `POST /api/auth/register` — `{ nome, email, senha }`. 400 se faltar campo/senha curta, 409 se o email já existe. Cria o usuário (senha vira `senhaHash` via bcrypt) e já loga (seta o cookie).
+- `POST /api/auth/login` — `{ email, senha }`. 401 genérico ("Email ou senha inválidos") se um dos dois estiver errado, sem dizer qual.
+- `POST /api/auth/logout` — limpa o cookie de login.
+- `GET /api/auth/me` — rota protegida (usa o middleware `autenticacao`); devolve o usuário logado a partir do cookie, 401 se não tiver.
 
 ### Modelo de dados (Prisma, `prisma/schema.prisma`)
 - `Pokemon` — atributos base + `geracaoNumero` (FK pra `Generation`).
 - `Type` — tipos únicos (fire, water, etc.), relação muitos-para-muitos com `Pokemon` via `PokemonType`.
 - `Generation` — `numero` (1 a 9) + `regiao` (kanto, johto, ...), relação um-para-muitos com `Pokemon`.
+- `User` — `nome`, `email` (único), `senhaHash`.
+- `Captura` — liga `User` a `Pokemon` (`userId` + `pokemonId`), com `@@unique([userId, pokemonId])` pra não capturar o mesmo Pokémon duas vezes.
 
 ### Frontend (React + Vite, porta 5173)
 - **Rotas:** `/` (Home, `PaginaInicial`) e `/pokemon/:id` (`PaginaDetalhe`), ambas dentro de `Layout` (Navbar fixa + `<Outlet />`).
@@ -109,3 +120,5 @@ cd apps/api && npm run dev   # porta 3001
 cd apps/web && npm run dev   # porta 5173
 ```
 Scripts úteis em `apps/api`: `db:migrate`, `db:generate`, `db:studio`, `sync:pokeapi` (repopula o banco a partir da PokeAPI, é seguro rodar de novo).
+
+`apps/api/.env` precisa de `DATABASE_URL` e `JWT_SECRET` (veja `apps/api/.env.example` — qualquer string aleatória serve em dev, ex: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).

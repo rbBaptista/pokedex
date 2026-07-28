@@ -30,8 +30,9 @@ model Pokemon {
   geracaoNumero      Int
   criadoEm           DateTime @default(now())
 
-  tipos   PokemonType[]
-  geracao Generation    @relation(fields: [geracaoNumero], references: [numero])
+  tipos    PokemonType[]
+  geracao  Generation    @relation(fields: [geracaoNumero], references: [numero])
+  capturas Captura[]
 }
 
 // Uma geração de Pokémon (ex: geração 1 = Kanto).
@@ -59,4 +60,28 @@ model PokemonType {
   tipo    Type    @relation(fields: [typeId], references: [id])
 
   @@id([pokemonId, typeId])
+}
+
+// Um usuário cadastrado no site.
+model User {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senhaHash String
+  criadoEm  DateTime @default(now())
+
+  capturas Captura[]
+}
+
+// Um Pokémon capturado por um usuário.
+model Captura {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  pokemonId   Int
+  capturadoEm DateTime @default(now())
+
+  usuario User    @relation(fields: [userId], references: [id])
+  pokemon Pokemon @relation(fields: [pokemonId], references: [id])
+
+  @@unique([userId, pokemonId])
 }

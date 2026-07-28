@@ -15,6 +15,61 @@ Pokémon.
 direto no banco via Prisma, sem lógica extra no código. Pra tipos, foi uma escolha
 explícita entre "tabela relacional" vs "campo texto/JSON" — optamos pela tabela.
 
+### `senhaHash` em vez de `senha`, e captura como estado único por usuário+Pokémon
+O model `User` guarda a senha no campo `senhaHash` (não `senha`), e `Captura` tem
+`@@unique([userId, pokemonId])` — um usuário não pode ter duas linhas de captura
+pro mesmo Pokémon.
+**Por quê:** o nome do campo deixa explícito, só de olhar o schema, que ali nunca
+deveria ir texto puro — o hash de verdade (bcrypt, via `bcryptjs`) foi implementado
+junto com as rotas de autenticação logo em seguida. A constraint única modela
+"capturado ou não" como um estado binário: capturar cria a linha, remover apaga
+ela, sem precisar de soft-delete nem de permitir duplicatas.
+
+### Login com JWT em cookie httpOnly, não sessão em memória
+`POST /api/auth/login` (e `/register`) setam um cookie `httpOnly` contendo um JWT
+assinado (`apps/api/src/token.ts`); não existe tabela nem armazenamento de sessão
+no servidor — cada request só verifica a assinatura do token.
+**Por quê:** a API roda com `tsx watch`, que reinicia o processo a cada arquivo
+salvo durante o desenvolvimento. Uma sessão guardada em memória (`express-session`
+com `MemoryStore`, a opção mais simples) derrubaria todo mundo logado a cada
+restart. JWT não guarda estado nenhum no servidor, então sobrevive a isso de
+graça. Uma sessão persistida em tabela (`Session` no Prisma) resolveria o mesmo
+problema, mas é infraestrutura a mais sem necessidade aqui. Como o cookie é
+`httpOnly`, o JavaScript do navegador não consegue ler o token — por isso existe
+`GET /api/auth/me`, pro frontend descobrir se está logado sem precisar guardar
+nada em `localStorage`.
+
+### `bcryptjs` em vez de `bcrypt`
+Pra fazer o hash da senha, usamos o pacote `bcryptjs` (implementação pura em
+JavaScript) em vez do `bcrypt` original (que depende de um binário nativo
+compilado, via `node-gyp`).
+**Por quê:** já sentimos essa dor com `better-sqlite3` (ver "Problemas
+enfrentados"), que depende de compilação nativa e trouxe avisos de instalação. A
+API do `bcryptjs` é idêntica (`hash`/`compare` assíncronos), então não muda nada
+no código, só evita mais uma dependência nativa no projeto.
+
+### Email normalizado (trim + lowercase) no cadastro e no login
+`normalizarEmail()` em `auth.routes.ts` aplica `.trim().toLowerCase()` antes de
+validar, salvar ou buscar por email — usado tanto em `/register` quanto em
+`/login`.
+**Por quê:** o `@unique` do SQLite compara string exata (sensível a maiúscula e
+espaço) — sem normalizar, `"Ash@Example.com"` e `"ash@example.com"` passam como
+dois emails "diferentes" pro banco, permitindo duas contas pro mesmo email de
+verdade, e login falha se a pessoa digitar com caixa diferente da que usou no
+cadastro. Normalizar antes de qualquer operação faz o `@unique` proteger o que
+ele deveria proteger.
+
+### `select` explícito nas queries do Prisma que não precisam do `senhaHash`
+`/register` (no `create`) e `/me` (no `findUnique`) usam `select: { id, nome,
+email }`. `/login` não usa `select` de propósito, porque precisa do `senhaHash`
+pra comparar com `bcrypt.compare`.
+**Por quê:** as três rotas já montavam a resposta manualmente sem incluir
+`senhaHash`, então não havia vazamento — mas a query sem `select` ainda trazia o
+hash pra memória sem necessidade em `/register`/`/me`. Restringir o `select`
+onde dá é defesa em profundidade: mesmo que alguém troque a resposta manual por
+`res.json(usuario)` direto no futuro, o hash nem chega a existir naquela
+variável.
+
 ### Busca e filtro de tipo no backend, não no frontend
 `GET /api/pokemons` aceita `busca`, `tipo` e `geracao` como query params, combináveis
 em AND. O frontend não filtra uma lista já carregada.
@@ -64,10 +119,18 @@ compatibilidade.
 **Por quê:** confirmado direto na documentação oficial antes de instalar, pra não
 seguir um tutorial desatualizado.
 
-### CORS totalmente aberto (`app.use(cors())`)
-**Por quê:** frontend (porta 5173) e backend (porta 3001) são origens diferentes
-em dev. Sem `cors()`, o navegador bloqueia o `fetch`. Não há restrição de origem
-configurada — ver seção de pendências.
+### CORS restrito a `http://localhost:5173`, com `credentials: true`
+Começou totalmente aberto (`app.use(cors())`, sem restrição de origem) porque
+frontend (porta 5173) e backend (porta 3001) são origens diferentes em dev, e sem
+`cors()` o navegador bloqueia o `fetch`. Virou `cors({ origin:
+'http://localhost:5173', credentials: true })` quando o login (cookie) foi
+implementado.
+**Por quê:** o cookie de login só é enviado pelo navegador em requests
+"credenciados" (`fetch(..., { credentials: 'include' })`, do lado do frontend), e
+o navegador **não permite** `credentials: true` combinado com origem coringa
+(`*`) — é uma regra de segurança do próprio CORS, não uma escolha nossa. Por isso
+a origem teve que virar explícita. Pra um deploy de verdade, essa origem
+precisaria virar a URL real do frontend em produção (não mais `localhost:5173`).
 
 ### `apps/api` e `apps/web` com `package.json` próprios, sem workspaces
 Não existe um `package.json` na raiz nem ferramenta de monorepo (npm workspaces,
@@ -151,14 +214,6 @@ Comandos de espera usados em exemplos (`timeout 30 bash -c '...'`) falharam
 - **Sem testes automatizados**: nada de unitário, integração ou e2e. Tudo foi
   validado manualmente (curl nas rotas, Playwright pra tirar screenshot e
   conferir visualmente) durante o desenvolvimento, sem deixar suíte no repo.
-- **Sem `.env.example`**: o `.gitignore` já prevê um (`!.env.example`), mas ele
-  não existe — quem clonar o repo do zero não tem onde ver que
-  `apps/api/.env` precisa de `DATABASE_URL="file:../../prisma/dev.db"`.
-- **CORS totalmente aberto**: `cors()` sem nenhuma restrição de origem. Serve
-  pra dev, mas precisaria ser restrito a um domínio real antes de qualquer deploy.
-- **`GET /api/pokemons` sem limite**: sem `geracao` no filtro, a rota devolve
-  literalmente tudo (hoje 1025 itens) numa resposta só. Não tem paginação por
-  offset/limit nem um teto de segurança.
 - **Sync sem retry**: se uma requisição pra PokeAPI falhar no meio do caminho,
   o script todo para (lança erro e sai). Como é idempotente (usa upsert), rodar
   de novo do zero resolve, mas não há nova tentativa automática nem retomada de
@@ -169,3 +224,10 @@ Comandos de espera usados em exemplos (`timeout 30 bash -c '...'`) falharam
   input de busca, pills de filtro de tipo e renderização do grid ao mesmo tempo.
   Não é um problema no tamanho atual, mas é candidato a ser quebrado em
   componentes menores se mais filtros forem adicionados.
+- **Cookie de login sem `secure` e origem do CORS fixa em `localhost:5173`**: bom
+  o suficiente pra dev (sem HTTPS local), mas antes de qualquer deploy o cookie
+  precisa de `secure: true` (só trafega em HTTPS) e o `origin` do CORS precisa
+  virar a URL real do frontend em produção.
+- **`JWT_SECRET` de dev está só no `.env` local (gitignored)**: nunca foi
+  commitado, mas também não existe nenhum lugar documentando como gerar um
+  segredo de produção — isso vai precisar entrar no processo de deploy.
