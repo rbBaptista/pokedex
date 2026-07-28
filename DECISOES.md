@@ -30,6 +30,18 @@ botões anterior/próxima ou um `<select>`, com a geração atual guardada na UR
 **Por quê:** pedido explícito — evita paginação genérica tipo "20 por página" e
 usa uma divisão que já faz sentido pro domínio (regiões do jogo).
 
+### Paginação "de verdade" só na opção "Todas"; geração específica carrega tudo de uma vez
+`usePokemons` só pagina com botão "Carregar mais" quando `geracao` é `undefined`
+("Todas" selecionada). Com uma geração específica, o hook busca as páginas
+necessárias em sequência automaticamente (sem interação do usuário) até completar,
+e só então mostra o grid — sem botão.
+**Por quê:** o teto de 100 itens por requisição da API (`LIMITE_MAXIMO`, proteção
+legítima pro modo "Todas", que pode chegar a 1025) é menor que a maior geração
+(Unova, geração 5, com 156). Duas opções foram consideradas: aumentar o teto do
+backend, ou o frontend buscar as páginas que faltam sozinho. Optamos por não mexer
+no backend — o teto continua protegendo o modo "Todas" igual, e carregar uma
+geração inteira nunca passa de 2 requisições.
+
 ### Fonte de verdade pra gerações: PokeAPI, não intervalos de id na mão
 O script de sync busca `/api/v2/generation` (e o detalhe de cada geração) na
 PokeAPI pra descobrir quais espécies pertencem a cada geração e o nome da região,

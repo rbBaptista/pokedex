@@ -6,6 +6,14 @@ export interface PokemonResumo {
   tipos: string[]
 }
 
+// Formato completo da resposta paginada de GET /api/pokemons.
+export interface RespostaPokemonsPaginada {
+  itens: PokemonResumo[]
+  total: number
+  pagina: number
+  limite: number
+}
+
 // Formato retornado por GET /api/pokemons/:id (detalhe completo).
 export interface PokemonDetalhe {
   id: number

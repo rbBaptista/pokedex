@@ -6,13 +6,17 @@ import PokemonCard from './PokemonCard'
 const TODOS_OS_TIPOS = Object.keys(CORES_POR_TIPO)
 
 interface PokemonGridProps {
-  geracao: number
+  geracao?: number
 }
 
 function PokemonGrid({ geracao }: PokemonGridProps) {
   const [busca, setBusca] = useState('')
   const [tipoSelecionado, setTipoSelecionado] = useState<string | null>(null)
-  const { pokemons, carregando, erro } = usePokemons({ busca, tipo: tipoSelecionado, geracao })
+  const { pokemons, total, carregando, carregandoMais, erro, carregarMais } = usePokemons({
+    busca,
+    tipo: tipoSelecionado,
+    geracao,
+  })
 
   function alternarTipo(tipo: string) {
     setTipoSelecionado((atual) => (atual === tipo ? null : tipo))
@@ -62,11 +66,30 @@ function PokemonGrid({ geracao }: PokemonGridProps) {
         )}
 
         {!carregando && !erro && pokemons.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {pokemons.map((pokemon) => (
-              <PokemonCard key={pokemon.id} pokemon={pokemon} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              {pokemons.map((pokemon) => (
+                <PokemonCard key={pokemon.id} pokemon={pokemon} />
+              ))}
+            </div>
+
+            <div className="mt-6 flex flex-col items-center gap-3">
+              <p className="text-sm text-neutral-500">
+                {pokemons.length} de {total} Pokémon
+              </p>
+
+              {pokemons.length < total && (
+                <button
+                  type="button"
+                  onClick={carregarMais}
+                  disabled={carregandoMais}
+                  className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-40"
+                >
+                  {carregandoMais ? 'Carregando...' : 'Carregar mais'}
+                </button>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

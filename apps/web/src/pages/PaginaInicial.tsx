@@ -7,10 +7,12 @@ function PaginaInicial() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { geracoes } = useGeracoes()
 
-  const geracaoAtual = Number(searchParams.get('geracao')) || 1
+  const parametroGeracao = searchParams.get('geracao')
+  const geracaoAtual: number | 'todas' =
+    parametroGeracao === 'todas' ? 'todas' : Number(parametroGeracao) || 1
 
-  function selecionarGeracao(numero: number) {
-    setSearchParams({ geracao: String(numero) })
+  function selecionarGeracao(valor: number | 'todas') {
+    setSearchParams({ geracao: String(valor) })
   }
 
   return (
@@ -20,7 +22,7 @@ function PaginaInicial() {
         geracaoAtual={geracaoAtual}
         aoSelecionar={selecionarGeracao}
       />
-      <PokemonGrid geracao={geracaoAtual} />
+      <PokemonGrid geracao={geracaoAtual === 'todas' ? undefined : geracaoAtual} />
     </div>
   )
 }
