@@ -39,6 +39,27 @@ problema, mas é infraestrutura a mais sem necessidade aqui. Como o cookie é
 `GET /api/auth/me`, pro frontend descobrir se está logado sem precisar guardar
 nada em `localStorage`.
 
+### Estado de login no frontend via React Context (`AuthContext`/`useAuth`)
+Um `AuthProvider` envolve o app inteiro (`main.tsx`) e guarda o usuário logado
+(ou `null`); qualquer componente lê isso com `useAuth()`.
+**Por quê:** diferente de `usePokemons`/`useGeracoes` (dados de uma página só),
+o status de login precisa ser lido por componentes sem relação entre si —
+Navbar, página de "minha pokedex", botão de captura no card — que vão existir em
+etapas futuras e não têm um ancestral comum além da raiz do app. Um hook comum
+não compartilha estado entre chamadas independentes; Context é o jeito padrão do
+React de resolver exatamente isso.
+
+### `credentials: 'include'` em toda chamada de autenticação do frontend
+`login`/`cadastrar`/`logout`/a checagem de `/me` no `AuthContext` passam
+`credentials: 'include'` pro `fetch`.
+**Por quê:** cookie `httpOnly` só é enviado/aceito pelo navegador em requests
+"credenciados" — sem essa opção, o cookie de login simplesmente não vai junto
+entre `localhost:5173` (frontend) e `localhost:3001` (API), mesmo o backend já
+estando configurado pra aceitar (`cors({ credentials: true })`, feito na etapa
+anterior). Testado de dentro do navegador via Playwright (não só `curl`, que não
+teria pego esse tipo de problema — `curl` não aplica as mesmas regras de CORS
+que um navegador de verdade aplica).
+
 ### `bcryptjs` em vez de `bcrypt`
 Pra fazer o hash da senha, usamos o pacote `bcryptjs` (implementação pura em
 JavaScript) em vez do `bcrypt` original (que depende de um binário nativo

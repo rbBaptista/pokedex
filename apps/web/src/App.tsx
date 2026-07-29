@@ -1,7 +1,9 @@
 import { Route, Routes } from 'react-router'
 import Layout from './components/Layout'
+import PaginaCadastro from './pages/PaginaCadastro'
 import PaginaDetalhe from './pages/PaginaDetalhe'
 import PaginaInicial from './pages/PaginaInicial'
+import PaginaLogin from './pages/PaginaLogin'
 
 function App() {
   return (
@@ -9,6 +11,8 @@ function App() {
       <Route element={<Layout />}>
         <Route index element={<PaginaInicial />} />
         <Route path="pokemon/:id" element={<PaginaDetalhe />} />
+        <Route path="login" element={<PaginaLogin />} />
+        <Route path="cadastro" element={<PaginaCadastro />} />
       </Route>
     </Routes>
   )

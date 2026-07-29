@@ -41,8 +41,8 @@ Leia antes de propor qualquer mudança de arquitetura.
 - [x] Opção "Todas" no seletor de geração (exige paginação ou scroll infinito na Home)
 - [x] Modelos `User` e `Captura` no Prisma (relação usuário ↔ Pokémon)
 - [x] Autenticação na API: cadastro, login e logout (senha com hash, nunca em texto puro)
-- [ ] Estado de autenticação no frontend + página `/login` e `/cadastro`
-- [ ] Navbar: botão "Entrar" quando deslogado, nome do usuário e "Sair" quando logado
+- [x] Estado de autenticação no frontend + página `/login` e `/cadastro`
+- [x] Navbar: botão "Entrar" quando deslogado, nome do usuário e "Sair" quando logado
 - [ ] Página `/minha-pokedex` com os Pokémon capturados pelo usuário logado (rota protegida)
 - [ ] Botão de capturar/remover no `PokemonCard` (deslogado → redireciona para o login)
 - [ ] Deploy
@@ -76,14 +76,15 @@ pokedex/
 │   │       └── generated/prisma/     # Prisma Client gerado (gitignored)
 │   └── web/
 │       └── src/
-│           ├── main.tsx        # ponto de entrada, envolve App em <BrowserRouter>
+│           ├── main.tsx        # ponto de entrada, envolve App em <BrowserRouter><AuthProvider>
 │           ├── App.tsx         # define as rotas (react-router)
 │           ├── config.ts       # API_BASE_URL
-│           ├── types/pokemon.ts
+│           ├── types/           # pokemon.ts, usuario.ts
 │           ├── constants/coresPorTipo.ts
+│           ├── contexts/AuthContext.tsx   # AuthProvider + useAuth (usuário logado)
 │           ├── hooks/          # usePokemons, usePokemon, useGeracoes
 │           ├── components/     # Layout, Navbar, PokemonCard, PokemonGrid, SeletorDeGeracao
-│           └── pages/          # PaginaInicial, PaginaDetalhe
+│           └── pages/          # PaginaInicial, PaginaDetalhe, PaginaLogin, PaginaCadastro
 ├── CLAUDE.md
 └── DECISOES.md
 ```
@@ -106,7 +107,9 @@ pokedex/
 - `Captura` — liga `User` a `Pokemon` (`userId` + `pokemonId`), com `@@unique([userId, pokemonId])` pra não capturar o mesmo Pokémon duas vezes.
 
 ### Frontend (React + Vite, porta 5173)
-- **Rotas:** `/` (Home, `PaginaInicial`) e `/pokemon/:id` (`PaginaDetalhe`), ambas dentro de `Layout` (Navbar fixa + `<Outlet />`).
+- **Rotas:** `/` (Home, `PaginaInicial`), `/pokemon/:id` (`PaginaDetalhe`), `/login` (`PaginaLogin`) e `/cadastro` (`PaginaCadastro`), todas dentro de `Layout` (Navbar fixa + `<Outlet />`).
+- **`AuthContext`/`useAuth()`** — `AuthProvider` envolve o app inteiro (dentro do `BrowserRouter`, em `main.tsx`) e guarda `usuario: Usuario | null` + `carregando` (true enquanto confere `GET /api/auth/me` na carga inicial, pra saber se o cookie já existente ainda vale). Expõe `login`/`cadastrar`/`logout`, que chamam a API com `credentials: 'include'` (necessário pro cookie httpOnly ir/vir entre `localhost:5173` e `localhost:3001`) e lançam `Error` com a mensagem da API em caso de falha, pra página mostrar. `PaginaLogin`/`PaginaCadastro` usam esse hook e navegam pra `/` em caso de sucesso; as duas também redirecionam pra `/` (sem renderizar o formulário) se `useAuth()` já disser que tem usuário logado.
+- **`Navbar`** lê `useAuth()`: enquanto `carregando` é `true`, mostra um placeholder (`animate-pulse`, mesma altura do botão/link real, pra Navbar não mudar de tamanho); deslogado mostra um link "Entrar"; logado mostra o email (truncado com `max-w` no mobile) + botão "Sair" (chama `logout()` e navega pra `/`).
 - **`PaginaInicial`** guarda a geração atual na URL (`?geracao=N` ou `?geracao=todas` via `useSearchParams`), renderiza `SeletorDeGeracao` e `PokemonGrid`. `geracao=todas` vira `geracao={undefined}` pro grid (sem filtro).
 - **`SeletorDeGeracao`** trata `["todas", 1, 2, ..., 9]` como uma sequência única — Anterior/Próxima sempre andam ±1 posição nela (desabilitadas nas duas pontas).
 - **`PokemonGrid`** é dono do estado de busca (texto) e filtro de tipo (pills clicáveis); busca os dados via o hook `usePokemons`, que recebe `busca`/`tipo`/`geracao` e faz debounce de 300ms. A paginação de verdade (96 por página, acumulando com "Carregar mais") só acontece quando `geracao` é `undefined` (opção "Todas") — com uma geração específica selecionada, o hook busca as páginas necessárias em sequência automaticamente (1 ou 2 requisições, já que a API tem teto de 100 itens por chamada) e entrega a geração inteira de uma vez, sem botão. Trocar busca/tipo/geracao reinicia o acumulado. Mostra "X de Y Pokémon" (`Y` = `total` da API).
