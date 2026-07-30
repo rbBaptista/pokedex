@@ -14,7 +14,11 @@ function Navbar() {
   return (
     <header className="sticky top-0 z-10 bg-red-600 shadow-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <h1 className="text-2xl font-bold text-white">Pokédex</h1>
+        <h1 className="text-2xl font-bold">
+          <Link to="/" className="text-white hover:opacity-80">
+            Pokédex
+          </Link>
+        </h1>
 
         <div className="flex h-8 items-center gap-3">
           {carregando ? (
@@ -29,7 +33,7 @@ function Navbar() {
               >
                 Minha Pokédex
               </Link>
-              <span className="hidden max-w-[140px] truncate text-sm text-white sm:inline lg:max-w-none">
+              <span className="hidden max-w-35 truncate text-sm text-white sm:inline lg:max-w-none">
                 {usuario.email}
               </span>
               <button
