@@ -14,6 +14,17 @@ interface CapturasContextValor {
 
 const CapturasContext = createContext<CapturasContextValor | null>(null)
 
+// Erro de uma chamada à API de capturas que guarda o status HTTP, pra quem
+// chama poder tratar 401 (sessão expirada) diferente de outros erros.
+export class ErroApi extends Error {
+  status: number
+
+  constructor(mensagem: string, status: number) {
+    super(mensagem)
+    this.status = status
+  }
+}
+
 // Guarda os Pokémon capturados pelo usuário logado — buscados uma vez quando
 // loga, limpos quando desloga — e disponibiliza pra qualquer PokemonCard saber
 // se está capturado, além de capturar/remover, via useCapturas().
@@ -72,7 +83,7 @@ export function CapturasProvider({ children }: { children: ReactNode }) {
 
     if (!resposta.ok) {
       const dados = await resposta.json().catch(() => ({}))
-      throw new Error(dados.erro ?? 'Não foi possível capturar.')
+      throw new ErroApi(dados.erro ?? 'Não foi possível capturar.', resposta.status)
     }
 
     setCapturas((atual) => [pokemon, ...atual])
@@ -86,7 +97,7 @@ export function CapturasProvider({ children }: { children: ReactNode }) {
 
     if (!resposta.ok) {
       const dados = await resposta.json().catch(() => ({}))
-      throw new Error(dados.erro ?? 'Não foi possível remover.')
+      throw new ErroApi(dados.erro ?? 'Não foi possível remover.', resposta.status)
     }
 
     setCapturas((atual) => atual.filter((pokemon) => pokemon.id !== pokemonId))

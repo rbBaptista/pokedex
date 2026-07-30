@@ -7,6 +7,10 @@ export const pokemonsRouter = Router()
 
 const LIMITE_PADRAO = 96
 const LIMITE_MAXIMO = 100
+// Teto pra `pagina`: mesmo com `limite=1`, o dataset inteiro (1025 Pokémon)
+// nunca precisa de mais páginas que isso — protege contra um `skip` gigante
+// (ex: ?pagina=999999999) sem restringir nenhum uso legítimo da API.
+const PAGINA_MAXIMA = 10_000
 
 // Normaliza um valor de query param pra um inteiro positivo, caindo no padrão
 // quando o valor não é numérico, é zero/negativo, ou nem foi informado.
@@ -28,14 +32,22 @@ function normalizarInteiroPositivo(valor: unknown, padrao: number, maximo?: numb
 pokemonsRouter.get('/', async (req, res) => {
   const busca = typeof req.query.busca === 'string' ? req.query.busca : undefined
   const tipo = typeof req.query.tipo === 'string' ? req.query.tipo : undefined
-  const geracao = typeof req.query.geracao === 'string' ? Number(req.query.geracao) : undefined
   const limite = normalizarInteiroPositivo(req.query.limite, LIMITE_PADRAO, LIMITE_MAXIMO)
-  const pagina = normalizarInteiroPositivo(req.query.pagina, 1)
+  const pagina = normalizarInteiroPositivo(req.query.pagina, 1, PAGINA_MAXIMA)
+
+  let geracao: number | undefined
+  if (typeof req.query.geracao === 'string') {
+    const numero = Number(req.query.geracao)
+    if (!Number.isInteger(numero) || numero <= 0) {
+      return res.status(400).json({ erro: 'A geração deve ser um número.' })
+    }
+    geracao = numero
+  }
 
   const where: Prisma.PokemonWhereInput = {
     ...(busca && { nome: { contains: busca } }),
     ...(tipo && { tipos: { some: { tipo: { nome: tipo } } } }),
-    ...(geracao && { geracaoNumero: geracao }),
+    ...(geracao !== undefined && { geracaoNumero: geracao }),
   }
 
   try {

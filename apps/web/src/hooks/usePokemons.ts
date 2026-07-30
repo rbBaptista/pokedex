@@ -19,6 +19,10 @@ interface UsePokemonsResultado {
 
 const ATRASO_DEBOUNCE_MS = 300
 const ITENS_POR_PAGINA = 96
+// Teto de segurança pro laço que busca uma geração inteira: a maior geração
+// (Unova, ~156 Pokémon) nunca passa de 2 páginas. Um valor bem acima disso só
+// evita loop infinito caso a API nunca devolva um `total` alcançável.
+const MAX_PAGINAS_GERACAO = 20
 
 function montarUrl(filtros: UsePokemonsFiltros, pagina: number): string {
   const params = new URLSearchParams()
@@ -33,8 +37,9 @@ function montarUrl(filtros: UsePokemonsFiltros, pagina: number): string {
 async function buscarPagina(
   filtros: UsePokemonsFiltros,
   pagina: number,
+  signal?: AbortSignal,
 ): Promise<RespostaPokemonsPaginada> {
-  const resposta = await fetch(montarUrl(filtros, pagina))
+  const resposta = await fetch(montarUrl(filtros, pagina), { signal })
   if (!resposta.ok) {
     throw new Error(`A API respondeu com status ${resposta.status}`)
   }
@@ -58,13 +63,17 @@ export function usePokemons(filtros: UsePokemonsFiltros = {}): UsePokemonsResult
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelado = false
+    const controller = new AbortController()
+
     const temporizador = setTimeout(async () => {
       setCarregando(true)
       setErro(null)
 
       try {
         if (modoPaginado) {
-          const dados = await buscarPagina({ busca, tipo, geracao }, 1)
+          const dados = await buscarPagina({ busca, tipo, geracao }, 1, controller.signal)
+          if (cancelado) return
           setPokemons(dados.itens)
           setTotal(dados.total)
           setPagina(dados.pagina)
@@ -73,8 +82,9 @@ export function usePokemons(filtros: UsePokemonsFiltros = {}): UsePokemonsResult
           let paginaAtual = 1
           let totalDaResposta = 0
 
-          while (true) {
-            const dados = await buscarPagina({ busca, tipo, geracao }, paginaAtual)
+          while (paginaAtual <= MAX_PAGINAS_GERACAO) {
+            const dados = await buscarPagina({ busca, tipo, geracao }, paginaAtual, controller.signal)
+            if (cancelado) return
             acumulado = acumulado.concat(dados.itens)
             totalDaResposta = dados.total
 
@@ -88,14 +98,26 @@ export function usePokemons(filtros: UsePokemonsFiltros = {}): UsePokemonsResult
           setTotal(totalDaResposta)
           setPagina(paginaAtual)
         }
-      } catch {
+      } catch (erroCapturado) {
+        if (cancelado) return
+        // Cancelamento (troca de filtro ou desmontagem) não é um erro de verdade,
+        // não deve aparecer pro usuário.
+        if (erroCapturado instanceof DOMException && erroCapturado.name === 'AbortError') {
+          return
+        }
         setErro('Não foi possível carregar os Pokémon. Verifique se a API está rodando.')
       } finally {
-        setCarregando(false)
+        if (!cancelado) {
+          setCarregando(false)
+        }
       }
     }, ATRASO_DEBOUNCE_MS)
 
-    return () => clearTimeout(temporizador)
+    return () => {
+      cancelado = true
+      controller.abort()
+      clearTimeout(temporizador)
+    }
   }, [busca, tipo, geracao])
 
   async function carregarMais() {

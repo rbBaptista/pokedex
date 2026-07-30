@@ -266,7 +266,55 @@ Comandos de espera usados em exemplos (`timeout 30 bash -c '...'`) falharam
 ## Pontos pendentes / que sabemos que precisam melhorar
 
 - **Deploy**: ainda não feito — é o único item não marcado no checklist do
-  CLAUDE.md.
+  CLAUDE.md. Três bloqueadores já mapeados (detalhados nos itens abaixo):
+  `API_BASE_URL` fixo no frontend, cookie de login com `sameSite: 'lax'` (não
+  sobrevive a frontend/API em domínios diferentes) e SQLite em disco efêmero.
+- **`API_BASE_URL` fixo em `http://localhost:3001/api`**: `apps/web/src/config.ts`
+  guarda a URL da API como uma constante fixa, não uma variável de ambiente do
+  Vite (`import.meta.env.VITE_*`). Em dev funciona porque a API sempre está em
+  `localhost:3001`, mas em produção o frontend seria servido de um domínio e a
+  API de outro (ou de uma URL completamente diferente) — `localhost:3001` não
+  existiria lá, e todo `fetch` da aplicação apontaria pro lugar errado. Precisa
+  virar `import.meta.env.VITE_API_BASE_URL` (ou similar), com um valor de dev
+  (`.env`) e um de produção.
+- **Cookie de login sem `secure`, `sameSite: 'lax'` que não sobrevive a domínios
+  diferentes, e origem do CORS fixa em `localhost:5173`**: `auth.routes.ts` seta
+  o cookie com `httpOnly: true, sameSite: 'lax'`, sem `secure`; `index.ts`
+  restringe o CORS a `origin: 'http://localhost:5173'`. Bom o suficiente pra dev
+  (frontend e API são o mesmo host `localhost`, só portas diferentes, sem HTTPS
+  local). Antes de qualquer deploy:
+  - o `origin` do CORS precisa virar a URL real do frontend em produção;
+  - o cookie precisa de `secure: true` (só trafega em HTTPS);
+  - `sameSite: 'lax'` só libera o cookie em requests `fetch`/XHR quando
+    frontend e API contam como "mesmo site" — deixa de valer se forem servidos
+    de domínios diferentes (o caso mais comum: `app.exemplo.com` chamando
+    `api.exemplo.com`). Nesse cenário, login pareceria funcionar (a resposta
+    200 chega), mas nenhuma chamada autenticada depois enviaria o cookie, e
+    tudo pareceria deslogado.
+
+  **Trade-off pendente:** a correção pro terceiro ponto é trocar pra
+  `sameSite: 'none'` (libera cookie cross-site de verdade), o que exige
+  `secure: true` (resolve os dois primeiros pontos de qualquer forma) — mas
+  remove uma defesa que o `lax` dava de graça contra CSRF (um `<form>` num site
+  malicioso não é mais bloqueado só pelo `sameSite`, já que `none` existe
+  justamente pra permitir esse tipo de request cross-site). Trocar pra `none`
+  precisaria vir acompanhado de alguma proteção contra CSRF nas rotas que mudam
+  estado (`POST`/`DELETE` de `/api/capturas`, `/api/auth/*`) — ainda não
+  decidido se via header customizado (`X-Requested-With`, que forms HTML
+  simples não conseguem setar) ou um token CSRF de verdade.
+- **SQLite em disco efêmero, agora com dados de usuário de verdade**: o banco é
+  um arquivo (`prisma/dev.db`) no disco onde a API roda. Ótimo em dev, mas a
+  maioria das plataformas de deploy mais simples usa disco efêmero por padrão
+  (container recriado a cada deploy/restart apaga qualquer arquivo escrito
+  localmente, `.db` incluído). Enquanto só existiam dados sincronizados da
+  PokeAPI (`sync:pokeapi` recria tudo do zero, é idempotente), perder o banco
+  não era um problema de verdade — só custava rodar o script de novo. Agora que
+  existem `User` e `Captura` (dados que só existem porque uma pessoa de verdade
+  cadastrou/capturou, sem fonte externa pra "ressincronizar"), perder o disco
+  vira perda de dados de usuário de verdade. Precisa, antes do deploy, de um
+  disco persistente de verdade (volume montado na plataforma escolhida) ou
+  migrar pra um banco gerenciado (Postgres, Turso, etc.) — ainda não decidido
+  qual caminho.
 - **Busca não cruza gerações**: buscar por nome só encontra resultados dentro da
   geração selecionada no momento. Pra achar um Pokémon sem saber a geração dele,
   é preciso navegar até a geração certa primeiro.
@@ -285,10 +333,6 @@ Comandos de espera usados em exemplos (`timeout 30 bash -c '...'`) falharam
   input de busca, pills de filtro de tipo e renderização do grid ao mesmo tempo.
   Não é um problema no tamanho atual, mas é candidato a ser quebrado em
   componentes menores se mais filtros forem adicionados.
-- **Cookie de login sem `secure` e origem do CORS fixa em `localhost:5173`**: bom
-  o suficiente pra dev (sem HTTPS local), mas antes de qualquer deploy o cookie
-  precisa de `secure: true` (só trafega em HTTPS) e o `origin` do CORS precisa
-  virar a URL real do frontend em produção.
 - **`JWT_SECRET` de dev está só no `.env` local (gitignored)**: nunca foi
   commitado, mas também não existe nenhum lugar documentando como gerar um
   segredo de produção — isso vai precisar entrar no processo de deploy.

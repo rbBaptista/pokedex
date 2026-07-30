@@ -1,10 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
+
+interface EstadoOrigem {
+  from?: string
+}
 
 function PaginaLogin() {
   const { usuario, carregando: carregandoSessao, login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Página de onde o usuário veio (ex: clicou em capturar deslogado), pra
+  // voltar pra lá depois do login em vez de sempre cair na Home.
+  const destino = (location.state as EstadoOrigem | null)?.from ?? '/'
 
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
@@ -14,9 +22,9 @@ function PaginaLogin() {
   // Quem já está logado não precisa ver o formulário de novo.
   useEffect(() => {
     if (!carregandoSessao && usuario) {
-      navigate('/', { replace: true })
+      navigate(destino, { replace: true })
     }
-  }, [carregandoSessao, usuario, navigate])
+  }, [carregandoSessao, usuario, navigate, destino])
 
   if (carregandoSessao || usuario) {
     return null
@@ -29,7 +37,7 @@ function PaginaLogin() {
 
     try {
       await login(email, senha)
-      navigate('/')
+      navigate(destino)
     } catch (erroCapturado) {
       setErro(erroCapturado instanceof Error ? erroCapturado.message : 'Não foi possível entrar.')
     } finally {

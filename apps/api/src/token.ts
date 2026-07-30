@@ -2,8 +2,9 @@
 // O token vai dentro de um cookie httpOnly — ver middlewares/autenticacao.ts.
 import 'dotenv/config'
 import jwt from 'jsonwebtoken'
+import { exigirEnv } from './env.ts'
 
-const SEGREDO = process.env.JWT_SECRET!
+const SEGREDO = exigirEnv('JWT_SECRET')
 const DURACAO = '7d'
 
 export function criarToken(usuarioId: number): string {
