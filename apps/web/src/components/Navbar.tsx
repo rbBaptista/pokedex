@@ -23,7 +23,13 @@ function Navbar() {
             <div className="h-8 w-20 animate-pulse rounded-md bg-white/20" aria-hidden="true" />
           ) : usuario ? (
             <>
-              <span className="max-w-[140px] truncate text-sm text-white sm:max-w-none">
+              <Link
+                to="/minha-pokedex"
+                className="shrink-0 text-sm text-white hover:underline"
+              >
+                Minha Pokédex
+              </Link>
+              <span className="hidden max-w-[140px] truncate text-sm text-white sm:inline lg:max-w-none">
                 {usuario.email}
               </span>
               <button

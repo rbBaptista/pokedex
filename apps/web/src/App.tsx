@@ -4,6 +4,7 @@ import PaginaCadastro from './pages/PaginaCadastro'
 import PaginaDetalhe from './pages/PaginaDetalhe'
 import PaginaInicial from './pages/PaginaInicial'
 import PaginaLogin from './pages/PaginaLogin'
+import PaginaMinhaPokedex from './pages/PaginaMinhaPokedex'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="pokemon/:id" element={<PaginaDetalhe />} />
         <Route path="login" element={<PaginaLogin />} />
         <Route path="cadastro" element={<PaginaCadastro />} />
+        <Route path="minha-pokedex" element={<PaginaMinhaPokedex />} />
       </Route>
     </Routes>
   )

@@ -6,6 +6,26 @@ for mexer no projeto sem ter acompanhado o histórico.
 
 ## Decisões técnicas e o porquê
 
+### `GET /api/capturas` devolve o mesmo formato de `GET /api/pokemons`
+A rota de capturas mapeia `Captura` (via `include: { pokemon: ... } }`) pro
+mesmo formato resumido (`id`, `nome`, `spriteUrl`, `tipos`) que a listagem de
+Pokémon já usa, em vez de devolver o registro de `Captura` cru (com `userId`,
+`pokemonId`, `capturadoEm`).
+**Por quê:** deixa o frontend reaproveitar o componente `PokemonCard` sem
+nenhuma adaptação — `PaginaMinhaPokedex` só passa o array de capturas pro
+mesmo card que a Home já usa. Também não expõe o `userId` de propósito (o
+usuário logado já sabe quem é, não precisa disso na resposta).
+
+### `POST`/`DELETE /api/capturas` ficaram pra outra etapa
+Esta etapa só criou a leitura (`GET`, listar capturas); criar/apagar uma
+captura fica pro item seguinte do checklist (botão de capturar/remover no
+`PokemonCard`).
+**Por quê:** sem o botão, não haveria como testar `POST`/`DELETE` de verdade
+pela UI — só via `curl`/inserção direta no banco, como foi feito aqui pra
+testar a listagem (um Squirtle inserido manualmente pro usuário de teste,
+depois removido). Construir a escrita junto com quem vai usá-la evita rota
+"no escuro".
+
 ### Modelagem relacional para tipos e gerações
 `Type` e `Generation` são tabelas próprias, relacionadas a `Pokemon` (`Type` via
 tabela de ligação `PokemonType`, `Generation` via chave estrangeira direta

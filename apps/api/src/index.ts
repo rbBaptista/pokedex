@@ -2,6 +2,7 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import express from 'express'
 import { authRouter } from './routes/auth.routes.ts'
+import { capturasRouter } from './routes/capturas.routes.ts'
 import { geracoesRouter } from './routes/geracoes.routes.ts'
 import { pokemonsRouter } from './routes/pokemons.routes.ts'
 
@@ -23,6 +24,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/pokemons', pokemonsRouter)
 app.use('/api/geracoes', geracoesRouter)
 app.use('/api/auth', authRouter)
+app.use('/api/capturas', capturasRouter)
 
 app.listen(porta, () => {
   console.log(`API rodando em http://localhost:${porta}`)
