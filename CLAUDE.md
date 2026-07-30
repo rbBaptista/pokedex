@@ -44,7 +44,7 @@ Leia antes de propor qualquer mudança de arquitetura.
 - [x] Estado de autenticação no frontend + página `/login` e `/cadastro`
 - [x] Navbar: botão "Entrar" quando deslogado, nome do usuário e "Sair" quando logado
 - [x] Página `/minha-pokedex` com os Pokémon capturados pelo usuário logado (rota protegida)
-- [ ] Botão de capturar/remover no `PokemonCard` (deslogado → redireciona para o login)
+- [x] Botão de capturar/remover no `PokemonCard` (deslogado → redireciona para o login)
 - [ ] Deploy
 
 ## Arquitetura atual
@@ -77,13 +77,13 @@ pokedex/
 │   │       └── generated/prisma/     # Prisma Client gerado (gitignored)
 │   └── web/
 │       └── src/
-│           ├── main.tsx        # ponto de entrada, envolve App em <BrowserRouter><AuthProvider>
+│           ├── main.tsx        # ponto de entrada, envolve App em <BrowserRouter><AuthProvider><CapturasProvider>
 │           ├── App.tsx         # define as rotas (react-router)
 │           ├── config.ts       # API_BASE_URL
 │           ├── types/           # pokemon.ts, usuario.ts
 │           ├── constants/coresPorTipo.ts
-│           ├── contexts/AuthContext.tsx   # AuthProvider + useAuth (usuário logado)
-│           ├── hooks/          # usePokemons, usePokemon, useGeracoes, useCapturas
+│           ├── contexts/       # AuthContext (usuário logado), CapturasContext (capturas do usuário)
+│           ├── hooks/          # usePokemons, usePokemon, useGeracoes
 │           ├── components/     # Layout, Navbar, PokemonCard, PokemonGrid, SeletorDeGeracao
 │           └── pages/          # PaginaInicial, PaginaDetalhe, PaginaLogin, PaginaCadastro, PaginaMinhaPokedex
 ├── CLAUDE.md
@@ -99,7 +99,9 @@ pokedex/
 - `POST /api/auth/login` — `{ email, senha }`. 401 genérico ("Email ou senha inválidos") se um dos dois estiver errado, sem dizer qual.
 - `POST /api/auth/logout` — limpa o cookie de login.
 - `GET /api/auth/me` — rota protegida (usa o middleware `autenticacao`); devolve o usuário logado a partir do cookie, 401 se não tiver.
-- `GET /api/capturas` — rota protegida; lista os Pokémon capturados pelo usuário logado, no mesmo formato resumido de `GET /api/pokemons` (`id`, `nome`, `spriteUrl`, `tipos`), mais recente primeiro. Sem paginação (lista pessoal). Ainda não existe `POST`/`DELETE` — capturar/remover é o próximo item do checklist.
+- `GET /api/capturas` — rota protegida; lista os Pokémon capturados pelo usuário logado, no mesmo formato resumido de `GET /api/pokemons` (`id`, `nome`, `spriteUrl`, `tipos`), mais recente primeiro. Sem paginação (lista pessoal).
+- `POST /api/capturas` — rota protegida; `{ pokemonId }`. Cria a captura. 409 se já capturado, 404 se o Pokémon não existir, 400 se `pokemonId` faltar/não for número.
+- `DELETE /api/capturas/:pokemonId` — rota protegida; remove a captura desse Pokémon pro usuário logado. 404 se não estava capturado, 400 se `:pokemonId` não for número.
 
 ### Modelo de dados (Prisma, `prisma/schema.prisma`)
 - `Pokemon` — atributos base + `geracaoNumero` (FK pra `Generation`).
@@ -112,10 +114,12 @@ pokedex/
 - **Rotas:** `/` (Home, `PaginaInicial`), `/pokemon/:id` (`PaginaDetalhe`), `/login` (`PaginaLogin`), `/cadastro` (`PaginaCadastro`) e `/minha-pokedex` (`PaginaMinhaPokedex`, protegida), todas dentro de `Layout` (Navbar fixa + `<Outlet />`).
 - **`AuthContext`/`useAuth()`** — `AuthProvider` envolve o app inteiro (dentro do `BrowserRouter`, em `main.tsx`) e guarda `usuario: Usuario | null` + `carregando` (true enquanto confere `GET /api/auth/me` na carga inicial, pra saber se o cookie já existente ainda vale). Expõe `login`/`cadastrar`/`logout`, que chamam a API com `credentials: 'include'` (necessário pro cookie httpOnly ir/vir entre `localhost:5173` e `localhost:3001`) e lançam `Error` com a mensagem da API em caso de falha, pra página mostrar. `PaginaLogin`/`PaginaCadastro` usam esse hook e navegam pra `/` em caso de sucesso; as duas também redirecionam pra `/` (sem renderizar o formulário) se `useAuth()` já disser que tem usuário logado.
 - **`Navbar`** lê `useAuth()`: enquanto `carregando` é `true`, mostra um placeholder (`animate-pulse`, mesma altura do botão/link real, pra Navbar não mudar de tamanho); deslogado mostra um link "Entrar"; logado mostra um link "Minha Pokédex" + o email (escondido no mobile, só a partir de `sm:`) + botão "Sair" (chama `logout()` e navega pra `/`).
-- **`PaginaMinhaPokedex`** é rota protegida: redireciona pra `/login` se `useAuth()` disser que não tem usuário (mesmo padrão de guarda de `PaginaLogin`/`PaginaCadastro`, só que invertido). Usa o hook `useCapturas` (`GET /api/capturas`) e reaproveita o `PokemonCard` direto, já que a API devolve o mesmo formato resumido de `/api/pokemons`. Sem busca/filtro/paginação (lista pessoal).
+- **`CapturasContext`/`useCapturas()`** — `CapturasProvider` (dentro do `AuthProvider`, em `main.tsx`, já que depende de `useAuth()`) guarda `capturas: PokemonResumo[]` do usuário logado — busca via `GET /api/capturas` quando `usuario` loga, limpa quando desloga. Expõe `estaCapturado(id)`, `capturar(pokemon)` (recebe o objeto completo, evitando um fetch extra) e `remover(id)`, que chamam `POST`/`DELETE /api/capturas` e atualizam a lista local direto (sem refazer o fetch inteiro) — por isso remover em "Minha Pokédex" some o card na hora, sem precisar recarregar.
+- **`PaginaMinhaPokedex`** é rota protegida: redireciona pra `/login` se `useAuth()` disser que não tem usuário (mesmo padrão de guarda de `PaginaLogin`/`PaginaCadastro`, só que invertido). Usa `useCapturas()` e reaproveita o `PokemonCard` direto, já que a API devolve o mesmo formato resumido de `/api/pokemons`. Sem busca/filtro/paginação (lista pessoal).
 - **`PaginaInicial`** guarda a geração atual na URL (`?geracao=N` ou `?geracao=todas` via `useSearchParams`), renderiza `SeletorDeGeracao` e `PokemonGrid`. `geracao=todas` vira `geracao={undefined}` pro grid (sem filtro).
 - **`SeletorDeGeracao`** trata `["todas", 1, 2, ..., 9]` como uma sequência única — Anterior/Próxima sempre andam ±1 posição nela (desabilitadas nas duas pontas).
 - **`PokemonGrid`** é dono do estado de busca (texto) e filtro de tipo (pills clicáveis); busca os dados via o hook `usePokemons`, que recebe `busca`/`tipo`/`geracao` e faz debounce de 300ms. A paginação de verdade (96 por página, acumulando com "Carregar mais") só acontece quando `geracao` é `undefined` (opção "Todas") — com uma geração específica selecionada, o hook busca as páginas necessárias em sequência automaticamente (1 ou 2 requisições, já que a API tem teto de 100 itens por chamada) e entrega a geração inteira de uma vez, sem botão. Trocar busca/tipo/geracao reinicia o acumulado. Mostra "X de Y Pokémon" (`Y` = `total` da API).
+- **`PokemonCard`** tem um botão de capturar (`★`/`☆`, fora do `<Link>` do card pra não aninhar botão dentro de link) em todo card, em qualquer página. Deslogado, clicar nele navega pra `/login` sem chamar a API; logado, chama `capturar`/`remover` do `CapturasContext` conforme `estaCapturado(pokemon.id)`.
 - **`PaginaDetalhe`** usa `useParams` + o hook `usePokemon` pra buscar `GET /api/pokemons/:id`, trata 404 como "não encontrado".
 - Cores dos badges de tipo vêm de um mapa fixo em `constants/coresPorTipo.ts` (18 tipos).
 

@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
+import { useCapturas } from '../contexts/CapturasContext'
 import PokemonCard from '../components/PokemonCard'
-import { useCapturas } from '../hooks/useCapturas'
 
 // Rota protegida: só quem está logado pode ver.
 function PaginaMinhaPokedex() {

@@ -26,6 +26,26 @@ testar a listagem (um Squirtle inserido manualmente pro usuário de teste,
 depois removido). Construir a escrita junto com quem vai usá-la evita rota
 "no escuro".
 
+### `CapturasContext` em vez do hook `useCapturas` original
+O hook `useCapturas` (buscava a lista só pra `PaginaMinhaPokedex` renderizar)
+foi substituído por `CapturasContext`/`useCapturas()` (mesmo nome, agora um
+Context) quando o botão de capturar chegou no `PokemonCard`.
+**Por quê:** o botão existe em **qualquer** card na tela — inclusive na Home,
+com até 1025 cards na opção "Todas" — e cada um precisa saber se aquele
+Pokémon já está capturado. Isso é estado compartilhado entre componentes sem
+relação direta entre si, o mesmo motivo que já tinha levado o login a virar
+`AuthContext` em vez de hook comum. Manter as duas fontes (hook antigo +
+Context novo) duplicaria a busca de capturas e poderia deixá-las
+dessincronizadas (ex: capturar na Home sem "Minha Pokédex" saber).
+
+### `capturar()` recebe o Pokémon inteiro, não só o id
+`CapturasContext.capturar(pokemon: PokemonResumo)` recebe o objeto completo
+(sprite, nome, tipos), não só `pokemon.id`.
+**Por quê:** quem chama (`PokemonCard`) já tem esse objeto em mãos — é o mesmo
+`pokemon` que está renderizando. Aceitar só o `id` obrigaria buscar os dados de
+volta na API (ou re-buscar a lista inteira de capturas) só pra saber o que
+acabou de ser capturado, uma viagem de rede a mais sem necessidade.
+
 ### Modelagem relacional para tipos e gerações
 `Type` e `Generation` são tabelas próprias, relacionadas a `Pokemon` (`Type` via
 tabela de ligação `PokemonType`, `Generation` via chave estrangeira direta
