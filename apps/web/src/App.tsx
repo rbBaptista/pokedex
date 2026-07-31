@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router'
 import Layout from './components/Layout'
+import PaginaAdmin from './pages/PaginaAdmin'
 import PaginaCadastro from './pages/PaginaCadastro'
 import PaginaDetalhe from './pages/PaginaDetalhe'
 import PaginaInicial from './pages/PaginaInicial'
@@ -15,6 +16,7 @@ function App() {
         <Route path="login" element={<PaginaLogin />} />
         <Route path="cadastro" element={<PaginaCadastro />} />
         <Route path="minha-pokedex" element={<PaginaMinhaPokedex />} />
+        <Route path="admin" element={<PaginaAdmin />} />
       </Route>
     </Routes>
   )

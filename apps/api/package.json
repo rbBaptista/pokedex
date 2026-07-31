@@ -10,7 +10,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "sync:pokeapi": "tsx src/scripts/sync-pokeapi.ts"
+    "sync:pokeapi": "tsx src/scripts/sync-pokeapi.ts",
+    "criar-admin": "tsx src/scripts/criar-admin.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",

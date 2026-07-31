@@ -95,6 +95,56 @@ o detalhamento completo de cada decisão anterior continua no histórico do git
   duas ocorrências hoje, mas duplicar a checagem tende a divergir (mensagens
   diferentes); um helper pequeno já deixa o padrão fácil de repetir numa
   terceira env var futura.
+- **`User.papel` é `String` com `@default("USER")`, não enum**: o provider
+  `sqlite` do Prisma não suporta enum nativo. O tipo `Papel` em
+  `src/types/papel.ts` centraliza os valores válidos (`"USER" | "ADMIN"`) pra
+  não espalhar literais soltos pelo código.
+- **`criar-admin` promove um usuário já cadastrado**, não cria um do zero: a
+  pessoa já passa pelo `/register` normal (mesmo caminho de hash de senha,
+  validação de email etc.); o script só muda o `papel` dela no banco. Evita
+  duplicar a lógica de criação de conta num segundo lugar.
+- **`/register` já ignora um `papel` vindo no corpo da requisição, por
+  construção**: a rota desestrutura só `{ nome, email, senha }` do `req.body`
+  e monta o `data` do Prisma explicitamente com esses campos — nunca faz
+  `create({ data: req.body })`. Isso evita mass assignment (cliente
+  conseguir setar campos que não deveria, tipo `papel: "ADMIN"`, só porque a
+  API "aceitou o corpo inteiro"); confirmado com um `POST /register` real
+  mandando `papel: "ADMIN"` no corpo, que resultou num usuário `USER` mesmo
+  assim.
+- **`papel` não entra no payload do JWT**: o token dura 7 dias e não é
+  revogável (mesmo motivo de não ter sessão em `MemoryStore`, ver "Login via
+  JWT" acima). Se o papel fosse assinado no login, rebaixar um ADMIN a USER no
+  banco não teria efeito até o token expirar sozinho — quem já tinha o token
+  antigo continuaria "sendo admin" pra qualquer checagem que só decodificasse
+  o JWT. Por isso o middleware `apenasAdmin` busca o `papel` do banco a cada
+  request, usando o token só como identidade (`usuarioId`), nunca como
+  autorização. Confirmado ao vivo: promovemos um usuário a ADMIN via
+  `criar-admin` **sem** ele deslogar/logar de novo, e o mesmo cookie antigo
+  passou a acessar `/api/admin/estatisticas` na requisição seguinte.
+- **`apenasAdmin` devolve 403, não 401**: 401 significa "eu não sei quem você
+  é" (sem cookie válido); 403 significa "eu sei quem você é, mas você não
+  pode fazer isso". Um usuário comum logado tentando acessar rota de admin
+  está no segundo caso — misturar os dois faria o frontend não conseguir
+  distinguir "faça login" de "isso aqui é restrito".
+- **`GET /api/admin/estatisticas` usa `groupBy` (Prisma) pra achar os mais
+  capturados**, não busca todas as capturas e conta em JS: agrega no banco,
+  então o tamanho da tabela `Captura` não vira trabalho no Node.
+- **`mediaCapturasPorUsuario` trata `totalUsuarios === 0` como média `0`**:
+  evita divisão por zero (site sem nenhum usuário cadastrado ainda) em vez de
+  devolver `NaN` no JSON.
+- **`PaginaAdmin` manda logado-mas-não-admin pra `/`, não pra `/login`**: é o
+  mesmo raciocínio de 403 vs 401 do middleware, só que no frontend — a pessoa
+  já está autenticada, então mandá-la pro login de novo não mudaria nada;
+  quem decide se ela pode entrar é o `papel`, não a sessão.
+- **`useEstatisticas` recebe um parâmetro `ativo`** em vez de `PaginaAdmin`
+  chamar o hook só depois de confirmar que é admin: hooks não podem ser
+  chamados condicionalmente (regra do React), então o hook guarda a mesma
+  condição internamente, igual o `useEffect` do `CapturasContext` já guarda
+  com `if (!usuario)`.
+- **Tipo `Papel` duplicado em `apps/web` e `apps/api`** (não importado de um
+  lugar só): mesmo motivo de não ter workspace/monorepo — os dois apps já não
+  compartilham código, então um segundo `type Papel` pequeno é mais simples
+  que criar infraestrutura de pacote compartilhado só pra isso.
 
 ## Problemas enfrentados e como foram resolvidos
 
@@ -124,6 +174,10 @@ o detalhamento completo de cada decisão anterior continua no histórico do git
 
 - **Deploy**: único item não marcado no checklist do CLAUDE.md. Três
   bloqueadores mapeados abaixo.
+- **`PaginaAdmin` não foi testada visualmente num navegador**: a extensão
+  Claude in Chrome não estava disponível nesta sessão. Validado por
+  typecheck, lint (`oxlint`) e `curl` nas rotas da API que ela consome, mas o
+  layout (Tailwind, alinhamento dos cartões) ainda não foi visto renderizado.
 - **`API_BASE_URL` fixo** (`apps/web/src/config.ts`): precisa virar
   `import.meta.env.VITE_API_BASE_URL`, com um valor de dev e um de produção.
 - **Cookie de login: sem `secure`, `sameSite: 'lax'`, CORS fixo em

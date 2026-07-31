@@ -68,6 +68,9 @@ model User {
   nome      String
   email     String   @unique
   senhaHash String
+  // "USER" | "ADMIN" (ver src/types/papel.ts). String, não enum: o provider
+  // sqlite do Prisma não suporta enum nativo.
+  papel     String   @default("USER")
   criadoEm  DateTime @default(now())
 
   capturas Captura[]

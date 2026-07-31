@@ -27,6 +27,11 @@ function Navbar() {
             <div className="h-8 w-20 animate-pulse rounded-md bg-white/20" aria-hidden="true" />
           ) : usuario ? (
             <>
+              {usuario.papel === 'ADMIN' && (
+                <Link to="/admin" className="shrink-0 text-sm text-white hover:underline">
+                  Admin
+                </Link>
+              )}
               <Link
                 to="/minha-pokedex"
                 className="shrink-0 text-sm text-white hover:underline"

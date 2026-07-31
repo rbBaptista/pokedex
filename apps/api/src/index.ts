@@ -1,6 +1,7 @@
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import express from 'express'
+import { adminRouter } from './routes/admin.routes.ts'
 import { authRouter } from './routes/auth.routes.ts'
 import { capturasRouter } from './routes/capturas.routes.ts'
 import { geracoesRouter } from './routes/geracoes.routes.ts'
@@ -25,6 +26,7 @@ app.use('/api/pokemons', pokemonsRouter)
 app.use('/api/geracoes', geracoesRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/capturas', capturasRouter)
+app.use('/api/admin', adminRouter)
 
 app.listen(porta, () => {
   console.log(`API rodando em http://localhost:${porta}`)

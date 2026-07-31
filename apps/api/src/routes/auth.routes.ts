@@ -29,7 +29,8 @@ function emailValido(email: string): boolean {
 
 // Remove espaços nas pontas e uniformiza maiúsculas/minúsculas, pra
 // "Ash@Example.com" e "ash@example.com " serem tratados como o mesmo email.
-function normalizarEmail(email: string): string {
+// Exportada porque o script criar-admin.ts precisa da mesma normalização.
+export function normalizarEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 
@@ -53,7 +54,7 @@ authRouter.post('/register', async (req, res) => {
     const senhaHash = await bcrypt.hash(senha, CUSTO_DO_HASH)
     const usuario = await prisma.user.create({
       data: { nome: nome.trim(), email, senhaHash },
-      select: { id: true, nome: true, email: true },
+      select: { id: true, nome: true, email: true, papel: true },
     })
 
     definirCookieDeLogin(res, usuario.id)
@@ -88,7 +89,7 @@ authRouter.post('/login', async (req, res) => {
     }
 
     definirCookieDeLogin(res, usuario.id)
-    res.json({ id: usuario.id, nome: usuario.nome, email: usuario.email })
+    res.json({ id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel })
   } catch (erro) {
     console.error(erro)
     res.status(500).json({ erro: 'Erro ao fazer login.' })
@@ -111,7 +112,7 @@ authRouter.get('/me', autenticacao, async (req, res) => {
   try {
     const usuario = await prisma.user.findUnique({
       where: { id: usuarioId },
-      select: { id: true, nome: true, email: true },
+      select: { id: true, nome: true, email: true, papel: true },
     })
 
     if (!usuario) {
